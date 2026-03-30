@@ -1070,6 +1070,18 @@ function getCanvasDataURL(id){
   return document.getElementById(id).toDataURL('image/png');
 }
 
+function loadCanvasFromDataURL(id, dataURL){
+  const canvas = document.getElementById(id);
+  if(!canvas || !dataURL) return;
+  const img = new Image();
+  img.onload = ()=>{
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  };
+  img.src = dataURL;
+}
+
 // ══════════════════════════════════════════════════════
 //  FILAS DINÁMICAS
 // ══════════════════════════════════════════════════════
@@ -1130,6 +1142,48 @@ function resetParteForm(){
   calcTotal();
   clearCanvas('canvas-cliente'); clearCanvas('canvas-encargado');
   fillDataLists();
+  // Limpiar ID de edición
+  window._editParteId = null;
+  document.querySelector('#page-nuevo-parte .topbar-title') && 
+    (document.querySelector('#page-nuevo-parte .topbar-title').textContent = '📋 Nuevo Parte');
+}
+
+// Cargar un parte existente en el formulario para editarlo
+function editarParte(id){
+  const p = S.partes.find(x=>x.id===id);
+  if(!p) return toast('Parte no encontrado','error');
+  resetParteForm();
+  window._editParteId = id;
+
+  // Rellenar campos
+  document.getElementById('p-fecha').value = p.fecha||'';
+  document.getElementById('p-cliente').value = p.cliente||'';
+  document.getElementById('p-proyecto').value = p.proyecto||'';
+  document.getElementById('p-referencia').value = p.referencia||'';
+  document.getElementById('p-notas').value = p.notas||'';
+
+  // Cargar filas de trabajos
+  document.getElementById('trab-rows').innerHTML=''; trabRowCount=0;
+  (p.trabajos||[]).forEach(t=>addTrabRow(t.desc||'',t.op||'',t.horas||''));
+  if((p.trabajos||[]).length===0) addTrabRow();
+
+  // Cargar filas de materiales
+  document.getElementById('mat-rows').innerHTML=''; matRowCount=0;
+  (p.materiales||[]).forEach(m=>addMatRow(m.mat||'',m.cant||''));
+  if((p.materiales||[]).length===0) addMatRow();
+
+  // Cargar firmas si existen
+  if(p.firmaCliente) loadCanvasFromDataURL('canvas-cliente', p.firmaCliente);
+  if(p.firmaEncargado) loadCanvasFromDataURL('canvas-encargado', p.firmaEncargado);
+
+  calcTotal();
+
+  // Cambiar título
+  const titulo = document.querySelector('#page-nuevo-parte .topbar-title');
+  if(titulo) titulo.textContent = '✏️ Editar Parte';
+
+  goTo('nuevo-parte');
+  toast('Parte cargado para editar','success');
 }
 
 function fillProySelect(){ fillDataLists(); } // compatibilidad
@@ -1188,14 +1242,28 @@ function saveParte(generarPDF=false, esBorrador=false){
   const estado = esBorrador ? 'Borrador' : (generarPDF ? 'Enviado' : 'Pendiente');
 
   const parte={
-    id:uid(), fecha, cliente, proyecto, operario, referencia, notas,
+    id: window._editParteId || uid(),
+    fecha, cliente, proyecto, operario, referencia, notas,
     trabajos, materiales,
     firmaCliente: getCanvasDataURL('canvas-cliente'),
     firmaEncargado: getCanvasDataURL('canvas-encargado'),
     estado,
     creadoEn: new Date().toISOString()
   };
-  S.partes.push(parte);
+
+  if(window._editParteId){
+    // Actualizar parte existente conservando estado original si no es borrador
+    const idx = S.partes.findIndex(x=>x.id===window._editParteId);
+    if(idx>=0){
+      const original = S.partes[idx];
+      parte.estado = esBorrador ? 'Borrador' : (original.estado==='Borrador' ? 'Pendiente' : original.estado);
+      parte.creadoEn = original.creadoEn;
+      S.partes[idx] = parte;
+    }
+    window._editParteId = null;
+  } else {
+    S.partes.push(parte);
+  }
   save(); renderAll();
 
   if(esBorrador){
@@ -1506,6 +1574,7 @@ function renderPartes(){
       <td>${pillEst(p.estado)}</td>
       <td style="font-size:.74rem;color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${envReg?envReg.destinatarios:''}">${envReg?envReg.destinatarios:'—'}</td>
       <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="editarParte('${p.id}')" title="Editar parte">✏️</button>
         <button class="btn btn-ghost btn-sm" onclick="generarPDFParte(S.partes.find(x=>x.id==='${p.id}'))" title="Descargar PDF">📄</button>
         <button class="btn btn-green btn-sm" onclick="toggleVal('${p.id}')">${p.estado==='Validado'?'↩':'✓'}</button>
         <button class="btn btn-orange btn-sm" onclick="guardarYEnviar('${p.id}')" title="Enviar por correo">📧 Enviar</button>
@@ -1531,6 +1600,7 @@ function renderBorradores(){
       <td style="font-size:.82rem">${p.operario||'—'}</td>
       <td><strong style="color:var(--orange)">${h}h</strong></td>
       <td><div style="display:flex;gap:5px">
+        <button class="btn btn-ghost btn-sm" onclick="editarParte('${p.id}')">✏️ Editar</button>
         <button class="btn btn-orange btn-sm" onclick="convertirBorrador('${p.id}')">📤 Enviar</button>
         <button class="btn btn-ghost btn-sm" onclick="generarPDFParte(S.partes.find(x=>x.id==='${p.id}'))">📄 PDF</button>
         <button class="btn btn-red btn-sm" onclick="delParte('${p.id}')">🗑</button>
