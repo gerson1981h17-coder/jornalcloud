@@ -688,6 +688,51 @@ textarea.form-input{resize:vertical;min-height:70px}
 <!-- Email envío -->
 <!-- Email modal eliminado — formulario integrado en página Envíos -->
 
+<!-- Modal editar parte -->
+<div id="modal-edit-parte" class="modal-overlay hidden">
+  <div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto">
+    <div class="modal-hd"><span class="modal-title">✏️ Editar Parte</span><button class="modal-close" onclick="closeModal('modal-edit-parte')">✕</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="mep-id">
+      <!-- Fila 1: Fecha + Cliente -->
+      <div class="form-row c2">
+        <div class="form-group" style="margin:0"><label class="form-label">FECHA</label>
+          <input type="date" class="form-input" id="mep-fecha"></div>
+        <div class="form-group" style="margin:0"><label class="form-label">CLIENTE</label>
+          <input type="text" class="form-input" id="mep-cliente" placeholder="Nombre del cliente"></div>
+      </div>
+      <!-- Fila 2: Obra + Referencia -->
+      <div class="form-row c2" style="margin-top:12px">
+        <div class="form-group" style="margin:0"><label class="form-label">OBRA / PROYECTO</label>
+          <input type="text" class="form-input" id="mep-proyecto" placeholder="Nombre de la obra"></div>
+        <div class="form-group" style="margin:0"><label class="form-label">REFERENCIA</label>
+          <input type="text" class="form-input" id="mep-referencia" placeholder="REF-001"></div>
+      </div>
+      <!-- Trabajos -->
+      <div style="margin-top:16px">
+        <label class="form-label">TRABAJOS</label>
+        <div id="mep-trab-rows"></div>
+        <button class="add-row-btn" style="margin-top:6px" onclick="mepAddTrabRow()">＋ Agregar fila</button>
+      </div>
+      <!-- Materiales -->
+      <div style="margin-top:16px">
+        <label class="form-label">MATERIALES</label>
+        <div id="mep-mat-rows"></div>
+        <button class="add-row-btn" style="margin-top:6px" onclick="mepAddMatRow()">＋ Agregar material</button>
+      </div>
+      <!-- Notas -->
+      <div class="form-group" style="margin-top:16px">
+        <label class="form-label">NOTAS</label>
+        <textarea class="form-input" id="mep-notas" rows="3" placeholder="Observaciones..."></textarea>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-parte')">Cancelar</button>
+      <button class="btn btn-orange" onclick="guardarEdicionParte()">💾 Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════════════════
 //  FIREBASE CONFIG
@@ -1148,42 +1193,98 @@ function resetParteForm(){
     (document.querySelector('#page-nuevo-parte .topbar-title').textContent = '📋 Nuevo Parte');
 }
 
-// Cargar un parte existente en el formulario para editarlo
+// ── Funciones del modal de edición de parte ──
+let _mepTrabCount=0, _mepMatCount=0;
+
+function mepAddTrabRow(desc='',op='',horas=''){
+  const i=_mepTrabCount++;
+  const div=document.createElement('div');
+  div.className='trab-row';
+  div.style.cssText='display:grid;grid-template-columns:1fr 140px 80px 32px;gap:6px;margin-bottom:6px';
+  div.innerHTML=`
+    <input class="form-input" placeholder="Descripción" value="${desc}" id="mep-td-${i}">
+    <input class="form-input" placeholder="Operario" value="${op}" id="mep-to-${i}">
+    <input class="form-input" type="number" placeholder="Horas" value="${horas}" step="0.5" min="0" id="mep-th-${i}">
+    <button class="btn btn-red btn-sm" onclick="this.parentElement.remove()" style="padding:0 8px">✕</button>`;
+  document.getElementById('mep-trab-rows').appendChild(div);
+}
+
+function mepAddMatRow(mat='',cant=''){
+  const i=_mepMatCount++;
+  const div=document.createElement('div');
+  div.style.cssText='display:grid;grid-template-columns:1fr 120px 32px;gap:6px;margin-bottom:6px';
+  div.innerHTML=`
+    <input class="form-input" placeholder="Material" value="${mat}" id="mep-md-${i}">
+    <input class="form-input" placeholder="Cantidad" value="${cant}" id="mep-mc-${i}">
+    <button class="btn btn-red btn-sm" onclick="this.parentElement.remove()" style="padding:0 8px">✕</button>`;
+  document.getElementById('mep-mat-rows').appendChild(div);
+}
+
 function editarParte(id){
   const p = S.partes.find(x=>x.id===id);
   if(!p) return toast('Parte no encontrado','error');
-  resetParteForm();
-  window._editParteId = id;
 
-  // Rellenar campos
-  document.getElementById('p-fecha').value = p.fecha||'';
-  document.getElementById('p-cliente').value = p.cliente||'';
-  document.getElementById('p-proyecto').value = p.proyecto||'';
-  document.getElementById('p-referencia').value = p.referencia||'';
-  document.getElementById('p-notas').value = p.notas||'';
+  document.getElementById('mep-id').value = id;
+  document.getElementById('mep-fecha').value = p.fecha||'';
+  document.getElementById('mep-cliente').value = p.cliente||'';
+  document.getElementById('mep-proyecto').value = p.proyecto||'';
+  document.getElementById('mep-referencia').value = p.referencia||'';
+  document.getElementById('mep-notas').value = p.notas||'';
 
-  // Cargar filas de trabajos
-  document.getElementById('trab-rows').innerHTML=''; trabRowCount=0;
-  (p.trabajos||[]).forEach(t=>addTrabRow(t.desc||'',t.op||'',t.horas||''));
-  if((p.trabajos||[]).length===0) addTrabRow();
+  // Cargar trabajos
+  document.getElementById('mep-trab-rows').innerHTML=''; _mepTrabCount=0;
+  (p.trabajos||[]).forEach(t=>mepAddTrabRow(t.desc||'',t.op||'',t.horas||''));
+  if((p.trabajos||[]).length===0) mepAddTrabRow();
 
-  // Cargar filas de materiales
-  document.getElementById('mat-rows').innerHTML=''; matRowCount=0;
-  (p.materiales||[]).forEach(m=>addMatRow(m.mat||'',m.cant||''));
-  if((p.materiales||[]).length===0) addMatRow();
+  // Cargar materiales
+  document.getElementById('mep-mat-rows').innerHTML=''; _mepMatCount=0;
+  (p.materiales||[]).forEach(m=>mepAddMatRow(m.mat||'',m.cant||''));
+  if((p.materiales||[]).length===0) mepAddMatRow();
 
-  // Cargar firmas si existen
-  if(p.firmaCliente) loadCanvasFromDataURL('canvas-cliente', p.firmaCliente);
-  if(p.firmaEncargado) loadCanvasFromDataURL('canvas-encargado', p.firmaEncargado);
+  openModal('modal-edit-parte');
+}
 
-  calcTotal();
+function guardarEdicionParte(){
+  const id = document.getElementById('mep-id').value;
+  const p = S.partes.find(x=>x.id===id);
+  if(!p) return toast('Parte no encontrado','error');
 
-  // Cambiar título
-  const titulo = document.querySelector('#page-nuevo-parte .topbar-title');
-  if(titulo) titulo.textContent = '✏️ Editar Parte';
+  // Recoger trabajos
+  const trabajos=[];
+  document.getElementById('mep-trab-rows').querySelectorAll('.trab-row, div').forEach(row=>{
+    const inputs = row.querySelectorAll('input');
+    if(inputs.length>=3){
+      const desc=(inputs[0].value||'').trim();
+      const op=(inputs[1].value||'').trim();
+      const horas=parseFloat(inputs[2].value)||0;
+      if(desc||op||horas) trabajos.push({desc,op,horas});
+    }
+  });
 
-  goTo('nuevo-parte');
-  toast('Parte cargado para editar','success');
+  // Recoger materiales
+  const materiales=[];
+  document.getElementById('mep-mat-rows').querySelectorAll('div').forEach(row=>{
+    const inputs = row.querySelectorAll('input');
+    if(inputs.length>=2){
+      const mat=(inputs[0].value||'').trim();
+      const cant=(inputs[1].value||'').trim();
+      if(mat||cant) materiales.push({mat,cant});
+    }
+  });
+
+  // Actualizar el parte conservando estado, firmas y fecha de creación
+  p.fecha = document.getElementById('mep-fecha').value || p.fecha;
+  p.cliente = document.getElementById('mep-cliente').value.trim() || p.cliente;
+  p.proyecto = document.getElementById('mep-proyecto').value.trim();
+  p.referencia = document.getElementById('mep-referencia').value.trim();
+  p.notas = document.getElementById('mep-notas').value.trim();
+  if(trabajos.length>0) p.trabajos = trabajos;
+  if(materiales.length>0) p.materiales = materiales;
+  p.operario = (trabajos.length>0&&trabajos[0].op)||p.operario||'';
+
+  save(); renderAll();
+  closeModal('modal-edit-parte');
+  toast('Parte actualizado ✓','success');
 }
 
 function fillProySelect(){ fillDataLists(); } // compatibilidad
