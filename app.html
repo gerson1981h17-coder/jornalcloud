@@ -218,23 +218,33 @@ textarea.form-input{resize:vertical;min-height:70px}
   <div class="auth-box">
     <div class="auth-logo" onclick="adminClick()" style="cursor:pointer;user-select:none">Jornal<span>Cloud</span></div>
     <p class="auth-sub">Sistema de gestión de jornales de obra</p>
-    <!-- Acceso admin oculto: escribe *admin* en el campo de correo -->
+    <!-- Acceso super admin oculto: escribe *admin* en el campo de correo -->
     <div class="auth-tabs">
-      <button class="auth-tab active" onclick="switchTab('login')">Iniciar sesión</button>
+      <button class="auth-tab active" onclick="switchTab('login-admin')">Admin</button>
+      <button class="auth-tab" onclick="switchTab('login-user')">Trabajador</button>
       <button class="auth-tab" onclick="switchTab('register')">Registrarse</button>
     </div>
-    <div id="login-form">
+    <!-- Login Admin (correo + contraseña) -->
+    <div id="login-admin-form">
       <div class="form-group"><label class="form-label">CORREO</label><input type="text" class="form-input" id="li-email" placeholder="correo@empresa.com" oninput="checkAdminCode(this.value)" onkeydown="if(event.key==='Enter')doLogin()"></div>
       <div class="form-group"><label class="form-label">CONTRASEÑA</label><input type="password" class="form-input" id="li-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
       <button class="btn-full" onclick="doLogin()">Entrar al sistema</button>
       <div class="auth-divider">o</div>
       <button class="demo-btn" onclick="loginDemo()">🚧 Entrar con cuenta demo</button>
     </div>
+    <!-- Login User (correo admin + nombre usuario + contraseña) -->
+    <div id="login-user-form" class="hidden">
+      <div class="form-group"><label class="form-label">CORREO DEL JEFE / EMPRESA</label><input type="text" class="form-input" id="lu-admin-email" placeholder="correo@empresa.com" onkeydown="if(event.key==='Enter')doLoginUser()"></div>
+      <div class="form-group"><label class="form-label">TU NOMBRE DE USUARIO</label><input type="text" class="form-input" id="lu-username" placeholder="ej: gerson" onkeydown="if(event.key==='Enter')doLoginUser()"></div>
+      <div class="form-group"><label class="form-label">CONTRASEÑA</label><input type="password" class="form-input" id="lu-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLoginUser()"></div>
+      <button class="btn-full" onclick="doLoginUser()">Entrar a mi espacio</button>
+    </div>
+    <!-- Registro Admin -->
     <div id="register-form" class="hidden">
       <div class="form-group"><label class="form-label">EMPRESA / NOMBRE</label><input type="text" class="form-input" id="re-name" placeholder="Mi Constructora"></div>
       <div class="form-group"><label class="form-label">CORREO</label><input type="text" class="form-input" id="re-email" placeholder="correo@empresa.com"></div>
       <div class="form-group"><label class="form-label">CONTRASEÑA</label><input type="password" class="form-input" id="re-pass" placeholder="Mínimo 6 caracteres"></div>
-      <button class="btn-full" onclick="doRegister()">Crear cuenta</button>
+      <button class="btn-full" onclick="doRegister()">Crear cuenta Admin</button>
     </div>
   </div>
 </div>
@@ -268,6 +278,7 @@ textarea.form-input{resize:vertical;min-height:70px}
       <div class="nav-item nav-admin-only" onclick="goTo('proyectos')"><span class="nav-icon">🏗️</span>Proyectos / Obras</div>
       <div class="nav-item nav-admin-only" onclick="goTo('empresa')"><span class="nav-icon">🏢</span>Mi Empresa</div>
       <div class="nav-item nav-admin-only" onclick="goTo('email-cfg')"><span class="nav-icon">📧</span>Correo de envío</div>
+      <div class="nav-item nav-admin-only" onclick="goTo('mis-usuarios')"><span class="nav-icon">👥</span>Mis Usuarios</div>
     </nav>
     <div class="sidebar-bottom">
       <div id="admin-panel-link" class="hidden" style="margin-bottom:6px">
@@ -605,10 +616,55 @@ textarea.form-input{resize:vertical;min-height:70px}
       </div></div>
     </div>
 
+    <!-- Mis Usuarios -->
+    <div id="page-mis-usuarios" class="page">
+      <div class="topbar">
+        <div class="topbar-title">👥 Mis Usuarios</div>
+        <div class="topbar-actions"><button class="btn btn-orange" onclick="openModalNuevoUser()">+ Nuevo usuario</button></div>
+      </div>
+      <div class="card">
+        <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px">Los usuarios que crees aquí podrán entrar con la pestaña <strong>Trabajador</strong> usando tu correo como referencia y su nombre de usuario + contraseña.</p>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Usuario</th><th>Nombre</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr></thead>
+          <tbody id="mis-users-tbody"></tbody></table>
+          <div id="mis-users-empty" class="empty-state hidden">
+            <div class="empty-icon">👥</div>
+            <div class="empty-title">Sin usuarios creados</div>
+            <div class="empty-sub">Crea usuarios para que tu equipo pueda crear partes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
 <!-- ══════ MODALES ══════ -->
+<!-- Modal nuevo usuario -->
+<div id="modal-nuevo-user" class="modal-overlay hidden">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-hd"><span class="modal-title">👤 Nuevo Usuario</span><button class="modal-close" onclick="closeModal('modal-nuevo-user')">✕</button></div>
+    <div class="modal-bd">
+      <input type="hidden" id="nu-id">
+      <div class="form-group"><label class="form-label">NOMBRE COMPLETO</label>
+        <input type="text" class="form-input" id="nu-nombre" placeholder="Juan García"></div>
+      <div class="form-group"><label class="form-label">NOMBRE DE USUARIO <span style="font-size:.75rem;color:var(--muted)">(para iniciar sesión)</span></label>
+        <input type="text" class="form-input" id="nu-username" placeholder="juan123" style="text-transform:lowercase" oninput="this.value=this.value.toLowerCase().replace(/\s/g,'')"></div>
+      <div class="form-group"><label class="form-label">CONTRASEÑA</label>
+        <input type="password" class="form-input" id="nu-pass" placeholder="Mínimo 6 caracteres"></div>
+      <div class="form-group"><label class="form-label">ESTADO</label>
+        <select class="form-select" id="nu-estado">
+          <option value="activo">Activo</option>
+          <option value="inactivo">Inactivo</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" onclick="closeModal('modal-nuevo-user')">Cancelar</button>
+      <button class="btn btn-orange" onclick="saveNuevoUser()">Guardar</button>
+    </div>
+  </div>
+</div>
 <!-- Trabajador -->
 <div id="modal-trab" class="modal-overlay hidden">
   <div class="modal" style="max-width:580px">
@@ -751,10 +807,11 @@ let _db = null;
 async function initFirebase(){
   if(_db) return _db;
   const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-  const { getFirestore, doc, getDoc, setDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  const { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
   const app = initializeApp(_fbCfg);
   _db = getFirestore(app);
   window._fsDoc = doc; window._fsGet = getDoc; window._fsSet = setDoc;
+  window._fsCol = collection; window._fsGetDocs = getDocs; window._fsDeleteDoc = deleteDoc;
   return _db;
 }
 
@@ -770,27 +827,30 @@ const COLORS=['#F97316','#3B82F6','#22C55E','#A855F7','#EF4444','#F59E0B','#06B6
 
 // Guarda en Firestore Y en localStorage como respaldo
 async function save(){
+  // Los users guardan en el espacio del admin, no en el suyo propio
+  const storageKey = S.user.rol==='user' ? S.user._adminEmail : S.user.email;
   const data = {
     partes:S.partes, trabajadores:S.trabajadores, proyectos:S.proyectos,
     empresa:S.empresa, emailCfg:S.emailCfg, emailHist:S.emailHist,
     destinatarios:S.destinatarios||[], envioHist:S.envioHist||[]
   };
-  // Respaldo local siempre
-  localStorage.setItem('jc_'+S.user.email, JSON.stringify(data));
-  // Nube
+  localStorage.setItem('jc_'+storageKey, JSON.stringify(data));
   try{
     const db = await initFirebase();
-    await window._fsSet(window._fsDoc(db,'usuarios',S.user.email.replace(/\./g,'_')), data);
+    const fsKey = storageKey.replace(/\./g,'_');
+    await window._fsSet(window._fsDoc(db,'usuarios',fsKey), data);
   }catch(e){ console.warn('Firebase save error:',e.message); }
 }
 
-// Carga desde Firestore, con fallback a localStorage
+// Carga desde Firestore — users cargan el espacio del admin
 async function load(){
-  if(S.user.email==='demo@jornalcloud.com'){ loadDemoData(); return; }
+  const storageKey = S.user.rol==='user' ? S.user._adminEmail : S.user.email;
+  if(storageKey==='demo@jornalcloud.com'){ loadDemoData(); return; }
+  const fsKey = storageKey.replace(/\./g,'_');
   showLoadingOverlay(true);
   try{
     const db = await initFirebase();
-    const snap = await window._fsGet(window._fsDoc(db,'usuarios',S.user.email.replace(/\./g,'_')));
+    const snap = await window._fsGet(window._fsDoc(db,'usuarios',fsKey));
     if(snap.exists()){
       const d = snap.data();
       S.partes        = d.partes||[];
@@ -801,18 +861,15 @@ async function load(){
       S.emailHist     = d.emailHist||[];
       S.destinatarios = d.destinatarios||[];
       S.envioHist     = d.envioHist||[];
-      // Sincronizar también local
-      localStorage.setItem('jc_'+S.user.email, JSON.stringify(d));
+      localStorage.setItem('jc_'+storageKey, JSON.stringify(d));
     } else {
-      // Usuario nuevo en la nube — ver si hay datos locales
-      const r = localStorage.getItem('jc_'+S.user.email);
+      const r = localStorage.getItem('jc_'+storageKey);
       if(r){
         const d=JSON.parse(r);
         S.partes=d.partes||[]; S.trabajadores=d.trabajadores||[]; S.proyectos=d.proyectos||[];
         S.empresa=Object.assign({nombre:'',nif:'',direccion:'',app:'JornalCloud',tel:''},d.empresa||{});
         S.emailCfg=Object.assign({asunto:'Partes de jornales – [Mes] [Año]',msg:''},d.emailCfg||{});
         S.emailHist=d.emailHist||[]; S.destinatarios=d.destinatarios||[]; S.envioHist=d.envioHist||[];
-        // Migrar datos locales a la nube
         save();
       } else {
         S.partes=[]; S.trabajadores=[]; S.proyectos=[];
@@ -823,8 +880,7 @@ async function load(){
     }
   }catch(e){
     console.warn('Firebase load error:',e.message);
-    // Fallback a localStorage
-    const r=localStorage.getItem('jc_'+S.user.email);
+    const r=localStorage.getItem('jc_'+storageKey);
     if(r){
       const d=JSON.parse(r);
       S.partes=d.partes||[]; S.trabajadores=d.trabajadores||[]; S.proyectos=d.proyectos||[];
@@ -879,39 +935,64 @@ function adminClick(){
 }
 
 function switchTab(t){
-  document.querySelectorAll('.auth-tab').forEach((el,i)=>el.classList.toggle('active',(i===0&&t==='login')||(i===1&&t==='register')));
-  document.getElementById('login-form').classList.toggle('hidden',t!=='login');
+  document.querySelectorAll('.auth-tab').forEach((el,i)=>el.classList.toggle('active',
+    (i===0&&t==='login-admin')||(i===1&&t==='login-user')||(i===2&&t==='register')));
+  document.getElementById('login-admin-form').classList.toggle('hidden',t!=='login-admin');
+  document.getElementById('login-user-form').classList.toggle('hidden',t!=='login-user');
   document.getElementById('register-form').classList.toggle('hidden',t!=='register');
 }
 
 async function doLogin(){
-  const e=document.getElementById('li-email').value.trim(), p=document.getElementById('li-pass').value;
+  const e=document.getElementById('li-email').value.trim();
+  const p=document.getElementById('li-pass').value;
   if(!e||!p) return toast('Completa todos los campos','error');
-  const btn=document.querySelector('#login-form .btn-full');
+  const btn=document.querySelector('#login-admin-form .btn-full');
   btn.textContent='⏳ Entrando...'; btn.disabled=true;
   try{
-    // Buscar en Firestore primero
     const db = await initFirebase();
     const snap = await window._fsGet(window._fsDoc(db,'jc_accounts',e.replace(/\./g,'_')));
     if(snap.exists()){
       const u = snap.data();
       if(u.pass !== p){ toast('Correo o contraseña incorrectos','error'); return; }
-      if(u.estado==='suspendido'){ toast('Tu cuenta está suspendida. Contacta al administrador.','error'); return; }
-      S.user=u; await enterApp();
-    } else {
-      // Fallback: buscar en localStorage (usuarios creados antes de Firebase)
-      const users=JSON.parse(localStorage.getItem('jc_users')||'[]');
-      const u=users.find(u=>u.email===e&&u.pass===p);
-      if(!u){ toast('Correo o contraseña incorrectos','error'); return; }
       if(u.estado==='suspendido'){ toast('Tu cuenta está suspendida.','error'); return; }
-      // Migrar cuenta a Firestore
-      await window._fsSet(window._fsDoc(db,'jc_accounts',e.replace(/\./g,'_')), u);
-      S.user=u; await enterApp();
+      // Asegurar que tiene rol admin
+      if(!u.rol || u.rol==='user') u.rol='admin';
+      S.user=u; S.user._adminEmail=e; await enterApp();
+    } else {
+      toast('No existe cuenta con ese correo. Regístrate primero.','error');
     }
   }catch(err){
     toast('Error de conexión: '+err.message,'error');
   }finally{
-    btn.textContent='Entrar'; btn.disabled=false;
+    btn.textContent='Entrar al sistema'; btn.disabled=false;
+  }
+}
+
+// Login de trabajador (user) — usa correo del admin + nombre de usuario + contraseña
+async function doLoginUser(){
+  const adminEmail = document.getElementById('lu-admin-email').value.trim();
+  const username   = document.getElementById('lu-username').value.trim().toLowerCase();
+  const pass       = document.getElementById('lu-pass').value;
+  if(!adminEmail||!username||!pass) return toast('Completa todos los campos','error');
+  const btn=document.querySelector('#login-user-form .btn-full');
+  btn.textContent='⏳ Entrando...'; btn.disabled=true;
+  try{
+    const db = await initFirebase();
+    // Buscar en la subcolección de users del admin: jc_accounts/{adminKey}/users/{username}
+    const adminKey = adminEmail.replace(/\./g,'_');
+    const userSnap = await window._fsGet(window._fsDoc(db,`jc_accounts/${adminKey}/users`,username));
+    if(!userSnap.exists()){ toast('Usuario no encontrado','error'); return; }
+    const u = userSnap.data();
+    if(u.pass !== pass){ toast('Contraseña incorrecta','error'); return; }
+    if(u.estado==='inactivo'){ toast('Tu cuenta está inactiva. Contacta a tu jefe.','error'); return; }
+    // El user trabaja en el espacio del admin
+    S.user = {...u, rol:'user', _adminEmail: adminEmail, _adminKey: adminKey};
+    await enterApp();
+    toast(`Bienvenido, ${u.name||username} 👷`,'success');
+  }catch(err){
+    toast('Error: '+err.message,'error');
+  }finally{
+    btn.textContent='Entrar a mi espacio'; btn.disabled=false;
   }
 }
 
@@ -927,16 +1008,14 @@ async function doRegister(){
     const db = await initFirebase();
     const snap = await window._fsGet(window._fsDoc(db,'jc_accounts',e.replace(/\./g,'_')));
     if(snap.exists()){ toast('Ya existe una cuenta con ese correo','error'); return; }
-    const u={id:uid(),name,email:e,pass:p,rol:'user',estado:'activo',creado:new Date().toISOString()};
+    const u={id:uid(),name,email:e,pass:p,rol:'admin',estado:'activo',creado:new Date().toISOString()};
     await window._fsSet(window._fsDoc(db,'jc_accounts',e.replace(/\./g,'_')), u);
-    // Registrar también en jc_users para compatibilidad con el panel admin
-    const users=JSON.parse(localStorage.getItem('jc_users')||'[]');
-    users.push(u); localStorage.setItem('jc_users',JSON.stringify(users));
-    S.user=u; await enterApp(); toast('¡Cuenta creada!','success');
+    S.user=u; S.user._adminEmail=e; await enterApp();
+    toast('¡Cuenta creada! Bienvenido 🎉','success');
   }catch(err){
     toast('Error al crear cuenta: '+err.message,'error');
   }finally{
-    btn.textContent='Crear cuenta'; btn.disabled=false;
+    btn.textContent='Crear cuenta Admin'; btn.disabled=false;
   }
 }
 
@@ -956,12 +1035,13 @@ async function enterApp(){
   await load();
   document.getElementById('auth-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-  document.getElementById('su-name').textContent=S.user.name||S.user.email;
+  // Mostrar nombre — para users mostrar su username
+  const displayName = S.user.rol==='user' ? (S.user.name||S.user.username||'Trabajador') : (S.user.name||S.user.email);
+  document.getElementById('su-name').textContent = displayName;
   const adminLink=document.getElementById('admin-panel-link');
   if(adminLink) adminLink.classList.toggle('hidden', S.user.rol!=='admin');
-  // rol 'user' o vacío → operario (no admin)
-  const rolEfectivo = S.user.rol === 'admin' ? 'admin' : (S.user.rol === 'operario' ? 'operario' : 'operario');
-  aplicarRol(rolEfectivo);
+  // Aplicar rol: admin ve todo, user ve solo partes
+  aplicarRol(S.user.rol==='admin' ? 'admin' : 'user');
   loadEmpresaUI(); loadEmailCfgUI();
   updateSidebarBrand();
   initFirmaCanvas('canvas-cliente'); initFirmaCanvas('canvas-encargado');
@@ -991,6 +1071,106 @@ function aplicarRol(rol){
   badgeEl.style.color = (rolColors[rol]||rolColors.admin).split('color:')[1];
 }
 
+// ══════════════════════════════════════════════════════
+//  GESTIÓN DE USUARIOS DEL ADMIN
+// ══════════════════════════════════════════════════════
+
+async function renderMisUsuarios(){
+  const tb = document.getElementById('mis-users-tbody');
+  const em = document.getElementById('mis-users-empty');
+  if(!S.user || S.user.rol!=='admin'){ if(tb) tb.innerHTML=''; return; }
+  try{
+    const db = await initFirebase();
+    const adminKey = S.user.email.replace(/\./g,'_');
+    const snap = await window._fsGetDocs(window._fsCol(db,`jc_accounts/${adminKey}/users`));
+    const users = [];
+    snap.forEach(d=>users.push({...d.data(), _id: d.id}));
+    if(!users.length){ tb.innerHTML=''; em.classList.remove('hidden'); return; }
+    em.classList.add('hidden');
+    tb.innerHTML = users.map(u=>`<tr>
+      <td><strong>@${u._id}</strong></td>
+      <td>${u.name||'—'}</td>
+      <td><span style="padding:2px 8px;border-radius:5px;font-size:.75rem;font-weight:600;background:${u.estado==='activo'?'rgba(34,197,94,.15)':'rgba(239,68,68,.15)'};color:${u.estado==='activo'?'#4ADE80':'#F87171'}">${u.estado||'activo'}</span></td>
+      <td style="font-size:.78rem;color:var(--muted)">${u.creado?u.creado.slice(0,10):'—'}</td>
+      <td><div style="display:flex;gap:5px">
+        <button class="btn btn-ghost btn-sm" onclick="editarUser('${u._id}','${(u.name||'').replace(/'/g,'')}',' ${u.estado||'activo'}')">✏️</button>
+        <button class="btn btn-red btn-sm" onclick="eliminarUser('${u._id}')">🗑</button>
+      </div></td>
+    </tr>`).join('');
+  }catch(e){ console.warn('Error cargando usuarios:', e.message); }
+}
+
+function openModalNuevoUser(){
+  document.getElementById('nu-id').value='';
+  document.getElementById('nu-nombre').value='';
+  document.getElementById('nu-username').value='';
+  document.getElementById('nu-pass').value='';
+  document.getElementById('nu-estado').value='activo';
+  document.querySelector('#modal-nuevo-user .modal-title').textContent='👤 Nuevo Usuario';
+  openModal('modal-nuevo-user');
+}
+
+function editarUser(username, nombre, estado){
+  document.getElementById('nu-id').value=username;
+  document.getElementById('nu-nombre').value=nombre.trim();
+  document.getElementById('nu-username').value=username;
+  document.getElementById('nu-username').disabled=true;
+  document.getElementById('nu-pass').value='';
+  document.getElementById('nu-pass').placeholder='Dejar vacío para no cambiar';
+  document.getElementById('nu-estado').value=estado.trim();
+  document.querySelector('#modal-nuevo-user .modal-title').textContent='✏️ Editar Usuario';
+  openModal('modal-nuevo-user');
+}
+
+async function saveNuevoUser(){
+  const editId  = document.getElementById('nu-id').value;
+  const nombre   = document.getElementById('nu-nombre').value.trim();
+  const username = document.getElementById('nu-username').value.trim().toLowerCase();
+  const pass     = document.getElementById('nu-pass').value;
+  const estado   = document.getElementById('nu-estado').value;
+
+  if(!nombre)    return toast('El nombre es obligatorio','error');
+  if(!username)  return toast('El nombre de usuario es obligatorio','error');
+  if(!editId && pass.length<6) return toast('Contraseña mínimo 6 caracteres','error');
+
+  try{
+    const db = await initFirebase();
+    const adminKey = S.user.email.replace(/\./g,'_');
+    const userRef = window._fsDoc(db,`jc_accounts/${adminKey}/users`, username);
+
+    if(!editId){
+      // Verificar que no existe
+      const snap = await window._fsGet(userRef);
+      if(snap.exists()) return toast('Ya existe un usuario con ese nombre','error');
+      await window._fsSet(userRef,{
+        name: nombre, username, pass, estado,
+        creado: new Date().toISOString()
+      });
+      toast('Usuario creado ✓','success');
+    } else {
+      // Actualizar — solo cambia contraseña si se escribió una nueva
+      const data = {name: nombre, estado};
+      if(pass.length>=6) data.pass = pass;
+      await window._fsSet(userRef, data, {merge:true});
+      document.getElementById('nu-username').disabled=false;
+      toast('Usuario actualizado ✓','success');
+    }
+    closeModal('modal-nuevo-user');
+    renderMisUsuarios();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
+async function eliminarUser(username){
+  if(!confirm(`¿Eliminar al usuario @${username}? No podrá iniciar sesión.`)) return;
+  try{
+    const db = await initFirebase();
+    const adminKey = S.user.email.replace(/\./g,'_');
+    await window._fsDeleteDoc(window._fsDoc(db,`jc_accounts/${adminKey}/users`, username));
+    toast('Usuario eliminado','error');
+    renderMisUsuarios();
+  }catch(e){ toast('Error: '+e.message,'error'); }
+}
+
 function doLogout(){
   save();
   S.user=null; S.partes=[]; S.trabajadores=[]; S.proyectos=[];
@@ -1010,6 +1190,7 @@ function goTo(p){
   if(p==='partes') renderPartes();
   if(p==='borradores') renderBorradores();
   if(p==='envios') renderEnvios();
+  if(p==='mis-usuarios') renderMisUsuarios();
   if(p==='trabajadores') renderTrabajadores();
   if(p==='proyectos') renderProyectos();
   if(p==='dashboard') renderDashboard();
