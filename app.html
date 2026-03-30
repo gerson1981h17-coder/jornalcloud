@@ -611,17 +611,34 @@ textarea.form-input{resize:vertical;min-height:70px}
 <!-- ══════ MODALES ══════ -->
 <!-- Trabajador -->
 <div id="modal-trab" class="modal-overlay hidden">
-  <div class="modal">
+  <div class="modal" style="max-width:580px">
     <div class="modal-hd"><span class="modal-title">👷 Trabajador</span><button class="modal-close" onclick="closeModal('modal-trab')">✕</button></div>
     <div class="modal-bd">
       <input type="hidden" id="mt-id">
       <div class="form-row c2">
-        <div class="form-group" style="margin:0"><label class="form-label">NOMBRE</label><input type="text" class="form-input" id="mt-nombre" placeholder="Juan García"></div>
-        <div class="form-group" style="margin:0"><label class="form-label">OFICIO</label><input type="text" class="form-input" id="mt-oficio" placeholder="Albañil"></div>
+        <div class="form-group" style="margin:0"><label class="form-label">NOMBRE *</label><input type="text" class="form-input" id="mt-nombre" placeholder="Juan"></div>
+        <div class="form-group" style="margin:0"><label class="form-label">APELLIDOS</label><input type="text" class="form-input" id="mt-apellidos" placeholder="García López"></div>
       </div>
       <div class="form-row c2" style="margin-top:12px">
-        <div class="form-group" style="margin:0"><label class="form-label">TELÉFONO</label><input type="text" class="form-input" id="mt-tel" placeholder="+58 414 000 0000"></div>
-        <div class="form-group" style="margin:0"><label class="form-label">ESTADO</label><select class="form-select" id="mt-estado"><option value="Activo">Activo</option><option value="Inactivo">Inactivo</option></select></div>
+        <div class="form-group" style="margin:0"><label class="form-label">OFICIO / PUESTO</label><input type="text" class="form-input" id="mt-oficio" placeholder="Albañil, Electricista..."></div>
+        <div class="form-group" style="margin:0"><label class="form-label">NIF / DNI</label><input type="text" class="form-input" id="mt-nif" placeholder="12345678A"></div>
+      </div>
+      <div class="form-row c2" style="margin-top:12px">
+        <div class="form-group" style="margin:0"><label class="form-label">TELÉFONO</label><input type="text" class="form-input" id="mt-tel" placeholder="+34 600 000 000"></div>
+        <div class="form-group" style="margin:0"><label class="form-label">EMAIL</label><input type="email" class="form-input" id="mt-email" placeholder="juan@empresa.com"></div>
+      </div>
+      <div class="form-row c2" style="margin-top:12px">
+        <div class="form-group" style="margin:0"><label class="form-label">TARIFA €/HORA</label><input type="number" class="form-input" id="mt-tarifa" placeholder="15.00" step="0.5" min="0"></div>
+        <div class="form-group" style="margin:0"><label class="form-label">ESTADO</label>
+          <select class="form-select" id="mt-estado">
+            <option value="Activo">Activo</option>
+            <option value="Inactivo">Inactivo</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:12px">
+        <label class="form-label">NOTAS</label>
+        <textarea class="form-input" id="mt-notas" rows="2" placeholder="Observaciones, especialidades, disponibilidad..."></textarea>
       </div>
     </div>
     <div class="modal-ft"><button class="btn btn-ghost" onclick="closeModal('modal-trab')">Cancelar</button><button class="btn btn-orange" onclick="saveTrab()">Guardar</button></div>
@@ -1605,19 +1622,33 @@ function updateBadge(){
 function saveTrab(){
   const id=document.getElementById('mt-id').value;
   const nombre=document.getElementById('mt-nombre').value.trim();
+  const apellidos=document.getElementById('mt-apellidos').value.trim();
   const oficio=document.getElementById('mt-oficio').value.trim();
+  const nif=document.getElementById('mt-nif').value.trim();
   const tel=document.getElementById('mt-tel').value.trim();
+  const email=document.getElementById('mt-email').value.trim();
+  const tarifa=parseFloat(document.getElementById('mt-tarifa').value)||0;
   const estado=document.getElementById('mt-estado').value;
+  const notas=document.getElementById('mt-notas').value.trim();
   if(!nombre) return toast('El nombre es obligatorio','error');
-  if(id){const t=S.trabajadores.find(t=>t.id===id);if(t){t.nombre=nombre;t.oficio=oficio;t.tel=tel;t.estado=estado;}}
-  else S.trabajadores.push({id:uid(),nombre,oficio,tel,estado,color:COLORS[S.trabajadores.length%COLORS.length]});
+  const datos={nombre,apellidos,oficio,nif,tel,email,tarifa,estado,notas};
+  if(id){const t=S.trabajadores.find(t=>t.id===id);if(t) Object.assign(t,datos);}
+  else S.trabajadores.push({id:uid(),...datos,color:COLORS[S.trabajadores.length%COLORS.length]});
   save();closeModal('modal-trab');renderTrabajadores();toast('Guardado ✓','success');
 }
 function editTrab(id){
   const t=S.trabajadores.find(t=>t.id===id);if(!t)return;
-  document.getElementById('mt-id').value=t.id;document.getElementById('mt-nombre').value=t.nombre;
-  document.getElementById('mt-oficio').value=t.oficio||'';document.getElementById('mt-tel').value=t.tel||'';
-  document.getElementById('mt-estado').value=t.estado;openModal('modal-trab');
+  document.getElementById('mt-id').value=t.id;
+  document.getElementById('mt-nombre').value=t.nombre||'';
+  document.getElementById('mt-apellidos').value=t.apellidos||'';
+  document.getElementById('mt-oficio').value=t.oficio||'';
+  document.getElementById('mt-nif').value=t.nif||'';
+  document.getElementById('mt-tel').value=t.tel||'';
+  document.getElementById('mt-email').value=t.email||'';
+  document.getElementById('mt-tarifa').value=t.tarifa||'';
+  document.getElementById('mt-estado').value=t.estado||'Activo';
+  document.getElementById('mt-notas').value=t.notas||'';
+  openModal('modal-trab');
 }
 function delTrab(id){if(!confirm('¿Eliminar?'))return;S.trabajadores=S.trabajadores.filter(t=>t.id!==id);save();renderTrabajadores();toast('Eliminado','error');}
 
@@ -2034,7 +2065,7 @@ function closeSidebar(){
 //  MODALES & UTILS
 // ══════════════════════════════════════════════════════
 function openModal(id){
-  if(id==='modal-trab'){document.getElementById('mt-id').value='';['mt-nombre','mt-oficio','mt-tel'].forEach(x=>document.getElementById(x).value='');document.getElementById('mt-estado').value='Activo';}
+  if(id==='modal-trab'){document.getElementById('mt-id').value='';['mt-nombre','mt-apellidos','mt-oficio','mt-nif','mt-tel','mt-email','mt-tarifa','mt-notas'].forEach(x=>document.getElementById(x).value='');document.getElementById('mt-estado').value='Activo';}
   if(id==='modal-proy'){document.getElementById('mp-id').value='';['mp-nombre','mp-codigo','mp-ubicacion','mp-desc'].forEach(x=>document.getElementById(x).value='');document.getElementById('mp-estado').value='Activo';}
   document.getElementById(id).classList.remove('hidden');
 }
